@@ -72,4 +72,8 @@ port.on('readable', () => {
             pressure = match.substring(0, match.length-3);
         });
     }
-})
+});
+
+let setpoint = waterlevel => {
+    console.log('code goes here');
+}
