@@ -17,8 +17,31 @@ const port = new SerialPort(arduinoPort, {
     baudRate: baudrate
 })
 
-let pressure = 0
+let pressure = null; // delete when in production
+let detectorHeightsp = null;
+let waterLevelsp = null;
+let waterLevel = null;
+let detectorHeight = null;
+
 // END INITIALIZATION
+
+
+// FUNCTION DEFINITION
+// (this might need to be put in a different file in a future update)
+
+// function used to adjust the water level height
+let wlSetpoint = waterlevel => {
+    console.log('code goes here');
+}
+
+// function used to adjust the neutron detector height
+let dhSetpoint = detectorHeight => {
+    console.log('code goes here');
+}
+
+
+// END FUNCTION DEFINITION
+
 
 
 // viewed at http://localhost:webPort
@@ -39,12 +62,13 @@ io.on('connection', (socket) => {
     socket.on('waterSetpoint', (msg) => {
         console.log('waterSetpoint: ', msg);
     });
-
-    
 });
-  
+
+// every 2 seconds, push data to the ctrlPanel
 setInterval(() => {
-    io.emit('level update', pressure);
+    io.emit('level update', pressure); // demo purposes only. not to be used in final version
+    io.emit('detectorHeight', detectorHeight);
+    io.emit('waterLevel', waterLevel);
 }, 2000);
 
 http.listen(webPort, (err) => {
@@ -55,15 +79,23 @@ http.listen(webPort, (err) => {
     }
 });
 
-// Read data when available, keeps it in "paused mode" (don't know signficance of this atm)
+// Read data from COM port when available
 port.on('readable', () => {
-    const regex = /\d+.\d+ Pa/gm;
+    const rPressure = /\d+.\d+ Pa/gm;
+    const rNewCycle = /ANSW/gm;
+    const rWaterLevel = /ANSB\d+/gm;
+    const rDetectorHeight = /ANSC\d+/gm;
+
     let m;
+    let nc;
+    let wl;
+    let dh;
+
     let data = port.read().toString('utf8');
-    while ((m = regex.exec(data)) !== null) {
+    while ((m = rPressure.exec(data)) !== null) {
         // This is necessary to avoid infinite loops with zero-width matches
-        if (m.index === regex.lastIndex) {
-            regex.lastIndex++;
+        if (m.index === rPressure.lastIndex) {
+            rPressure.lastIndex++;
         }
         
         // The result can be accessed through the `m`-variable.
@@ -71,9 +103,30 @@ port.on('readable', () => {
             console.log(`Found match, group ${groupIndex}: ${match}`);
             pressure = match.substring(0, match.length-3);
         });
-    }
-});
+    };
 
-let setpoint = waterlevel => {
-    console.log('code goes here');
-}
+    // Catch ANSW
+    while ((nc = rNewCycle.exec(data)) !== null) {
+        if (nc.index === rNewCycle.lastIndex) {
+            rNewCycle.lastIndex++;
+        };
+
+        nc.forEach((match, groupIndex) => {
+            console.log('ANSW');
+            io.emit('watchdog', 1);``
+        });
+    };
+    
+    // Catch ANSB
+    while (wl = rWaterLevel.exec(data) !== null) {
+        if (wl.index === rWaterLevel.lastIndex) {
+            rWaterLevel.lastIndex++;
+        };
+
+        wl.forEach((match, groupIndex) => {
+            console.log(`Found waterLevel, group ${groupIndex}: ${match}`);
+            waterLevel = match.substring(4, match.length);
+        });        
+    };
+    
+});

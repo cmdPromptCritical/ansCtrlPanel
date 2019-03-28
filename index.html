@@ -3,18 +3,22 @@
   <head>
     <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link href="public/style.css" rel="stylesheet" type="text/css" media="all">
+    
     <title>ANS Control Panel</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="public/plotly.min.js"></script>
 
     <style>
             body { padding-top:50px; }
     </style>
   </head>
   <body>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
-    <script src="public/plotly.min.js"></script>
     <script>
         $(function () {
+            // initializes socket connection to server
             var socket = io();
             $('form').submit(function(e){
                 e.preventDefault(); // prevents page reloading
@@ -24,7 +28,7 @@
             });
             let chartlayout = {
             };
-            Plotly.plot('chart',[{
+            Plotly.plot('wlchart',[{
                 y:[null],
                 type:'line'
                 
@@ -32,33 +36,72 @@
 
             socket.on('level update', function(msg){
                 currentWaterLvl.innerHTML = "Water Level: " + msg + " Pa";
-                Plotly.extendTraces('chart',{y:[[parseFloat(msg)]]}, [0]);
+                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [0]);
             });
         });
     </script>
-        
-    <h1>Automated Neutron Spectrometer Control Panel</h1>
-    <h2>Status</h2>
-    <h2>Water Level</h2>
-    <div class="container">
-        <form>
-            <p>
-                <label>Water Level Setpoint</label>
-                <input type="text" 
-                        id="waterLevelSetpoint" 
-                        value="Range from 0 to 100">
-                <div id="currentWaterLvl"> Current Water Level:</div>
-            </p>
-        </form>
-    </div>
-    <div class="wrapper">
-        <div id="chart"></div>
-        <script>
+    <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Sigma Labs</a>
+        <ul class="navbar-nav px-3">
+            <li class="nav-item text-nowrap">
+                <button type="button" class="btn btn-danger">ABORT</button>
+            </li>
+        </ul>
+    </nav>
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+                <div class="sidebar-sticky">
+                    <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                        <span data-feather="home"></span>
+                        Dashboard <span class="sr-only">(current)</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                        <span data-feather="layers"></span>
+                        COM Log
+                        </a>
+                    </li>
+                    </ul>
             
-        </script>
-    </div>
-    <h2>Detector Level</h2>
-    <h2>Detector Spectrum</h2>
+                    </ul>
+                </div>
+            </nav>
+        
+            <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">ANS Dashboard</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group mr-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary">Export</button>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>Status</h2>
+                <p>Connection: Online</p>
+                <h2>Water Level</h2>
+                    <form>
+                        <p>
+                            <label>Water Level Setpoint</label>
+                            <input type="text" 
+                                    id="waterLevelSetpoint" 
+                                    value="Range from 0 to 100">
+                            <div id="currentWaterLvl"> Current Water Level:</div>
+                        </p>
+                    </form>
+                <div id="wlchart"></div>
+            
+                <h2>Detector Level</h2>
+            </main>
+        </div>
+        </div>
+
+
+
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
