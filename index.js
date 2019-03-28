@@ -63,6 +63,13 @@ io.on('connection', (socket) => {
         console.log('waterSetpoint: ', msg);
     });
 });
+io.on('abort', (msg) => {
+    // checks abort message from ctrlPanel and determines 
+    // which signal to send to ANS
+    for (var i = 0; i < str.length; i++) {
+        port.write(str.charAt(i));
+      }      
+});
 
 // every 2 seconds, push data to the ctrlPanel
 setInterval(() => {
