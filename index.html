@@ -17,6 +17,20 @@
   </head>
   <body>
     <script>
+        // inits the watchdog timer. If curent time > 5s older than watchdog,
+        // send kill sig to ANS.
+        watchdog = (new Date).getTime();
+        dead = 0;
+        
+        setInterval(()=>{
+            if ((new Date).getTime() - watchdog > 150) {
+                $("#watchdogBlink").css("background-color","red")
+            } else {
+                $("#watchdogBlink").css("background-color","green")
+            }
+        }, 150)
+
+        // begin jquery stuff
         $(function () {
             // initializes socket connection to server
             var socket = io();
@@ -38,7 +52,18 @@
                 currentWaterLvl.innerHTML = "Water Level: " + msg + " Pa";
                 Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [0]);
             });
+
+            socket.on('watchdog', (msg) =>{
+                wdtest = (new Date).getTime();
+                if (wdtest - watchdog > 5000) {
+                    console.log('ahhhhhhh')
+                    socket.emit('abort', 'A6')
+                } else {
+                    watchdog = (new Date).getTime();
+                }
+            });
         });
+
     </script>
     <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow">
         <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Sigma Labs</a>
@@ -62,7 +87,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#">
                         <span data-feather="layers"></span>
-                        COM Log
+                        COM Stream
                         </a>
                     </li>
                     </ul>
@@ -82,7 +107,7 @@
                 </div>
 
                 <h2>Status</h2>
-                <p>Connection: Online</p>
+                <span>Connection: Online  </span><span id="watchdogBlink"></span>
                 <h2>Water Level</h2>
                     <form>
                         <p>
