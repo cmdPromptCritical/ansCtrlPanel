@@ -92,9 +92,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('user disconnected');
     });
-    socket.on('waterSetpoint', (msg) => {
-        console.log('waterSetpoint: ', msg);
-    });
+    
 });
 io.on('abort', (msg) => {
     // checks abort message from ctrlPanel and determines 
@@ -104,6 +102,12 @@ io.on('abort', (msg) => {
       }      
 });
 
+io.on('waterSetpoint', (msg) => {
+    console.log('waterSetpoint: ', msg);
+});
+io.on('dhSetpoint', (dhSetpoint) => {
+    console.log('dhSetpoint: ' + dhSetpoint);
+});
 // every 2 seconds, push data to the ctrlPanel
 setInterval(() => {
     io.emit('level update', pressure); // demo purposes only. not to be used in final version

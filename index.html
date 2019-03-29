@@ -38,6 +38,8 @@
                 e.preventDefault(); // prevents page reloading
                 socket.emit('waterSetpoint', $('#waterLevelSetpoint').val());
                 $('#waterLevelSetpoint').val('');
+                socket.emit('dhSetpoint', $('#detectorHeightSetpoint').val());
+                $('#detectorHeightSetpoint').val('');
                 return false;
             });
             let chartlayout = {
@@ -110,17 +112,28 @@
                 <span>Connection: Online  </span><span id="watchdogBlink"></span>
                 <h2>Water Level</h2>
                     <form>
-                        <p>
-                            <label>Water Level Setpoint</label>
+                        <div class="form-group">
+                            <label>Water Level Setpoint: </label>
                             <input type="text" 
+                                    class="form-control"
                                     id="waterLevelSetpoint" 
-                                    value="Range from 0 to 100">
+                                    placeholder="Range from 0 to 100">
                             <div id="currentWaterLvl"> Current Water Level:</div>
                         </p>
                     </form>
                 <div id="wlchart"></div>
             
-                <h2>Detector Level</h2>
+                <h2>Detector Height</h2>
+                    <form>
+                        <p>Current detector height: </p>
+                        <div class="form-group">
+                            <label>Detector Height Setpoint: </label>
+                            <input type="text" 
+                                    class="form-control"
+                                    id="detectorHeightSetpoint" 
+                                    placeholder="Range from 0 to 100">
+                        </p>
+                    </form>
             </main>
         </div>
         </div>
