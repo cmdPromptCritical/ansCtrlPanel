@@ -22,6 +22,7 @@ let detectorHeightsp = null;
 let waterLevelsp = null;
 let waterLevel = null;
 let detectorHeight = null;
+let testDist = null; // delete when in production
 
 // END INITIALIZATION
 
@@ -30,13 +31,45 @@ let detectorHeight = null;
 // (this might need to be put in a different file in a future update)
 
 // function used to adjust the water level height
-let wlSetpoint = waterlevel => {
+let wlSetpoint = sp => {
     console.log('code goes here');
+    while (sp < testDist) {
+
+    }
 }
 
 // function used to adjust the neutron detector height
-let dhSetpoint = detectorHeight => {
-    console.log('code goes here');
+let dhChange = dhSetpoint => {
+    
+    let direction = null;
+
+    // does things to get current state of detector
+    if (detectorHeight >= dhSetpoint) {
+        port.write('7')
+        direction = 'down';
+    } else {
+        port.write('8')
+        direction = 'up';
+    }
+
+    // starts movement after ANS has time to prepare 
+    // (aka switch motor power connections)
+    setTimeout(() => {
+        port.write('9')
+    }, 500)
+
+    // enters routine to monitor actual v target
+    var ctrldh = setInterval(() =>{
+        if (direction == 'down') {
+            if (detectorHeight < dhSetpoint) {
+                clearInterval(ctrldh);
+            }
+        } else {
+            if (detectorHeight > dhSetpoint) {
+                clearInterval(ctrldh);
+            }
+        }
+    }, 2000);
 }
 
 
@@ -97,6 +130,7 @@ port.on('readable', () => {
     let nc;
     let wl;
     let dh;
+    let dist; // used for dev only
 
     let data = port.read().toString('utf8');
     while ((m = rPressure.exec(data)) !== null) {
@@ -135,5 +169,16 @@ port.on('readable', () => {
             waterLevel = match.substring(4, match.length);
         });        
     };
+
+    // Catch UT distance. used for dev only
+    let pattern = /Distance: \d+/gm
+    let myarr =  data.match(pattern)
+    if (myarr[0] != '') {
+        distance = myarr[0].substring(10, myarr[0].length);
+        console.log('distance: ' + distance)
+        testDist = distance
+    } else {
+
+    }
     
 });
