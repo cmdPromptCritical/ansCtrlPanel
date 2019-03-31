@@ -4,9 +4,10 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const path = require('path');
 const SerialPort = require('serialport')
+const Readline = require('@serialport/parser-readline')
 
 // CONFIGURATION
-let arduinoPort = 'COM7'
+let arduinoPort = 'COM8'
 let baudrate = 9600
 let webPort = 8080 // port to access ctrlPanel e.g. http://localhost:8080
 // END CONFIGURATION
@@ -38,17 +39,17 @@ let wlSetpoint = sp => {
     }
 }
 
-// function used to adjust the neutron detector height
-let dhChange = dhSetpoint => {
+// function used to adjust the neutron detector height (low=high, high=low)
+function dhChange (dhSetpoint) {
     
     let direction = null;
 
     // does things to get current state of detector
-    if (detectorHeight >= dhSetpoint) {
-        port.write('7')
+    if (detectorHeight <= dhSetpoint) {
+        port.write('8')
         direction = 'down';
     } else {
-        port.write('8')
+        port.write('7')
         direction = 'up';
     }
 
@@ -56,16 +57,16 @@ let dhChange = dhSetpoint => {
     // (aka switch motor power connections)
     setTimeout(() => {
         port.write('9')
-    }, 500)
+    }, 250)
 
     // enters routine to monitor actual v target
     var ctrldh = setInterval(() =>{
         if (direction == 'down') {
-            if (detectorHeight < dhSetpoint) {
+            if (detectorHeight > dhSetpoint) {
                 clearInterval(ctrldh);
             }
         } else {
-            if (detectorHeight > dhSetpoint) {
+            if (detectorHeight < dhSetpoint) {
                 clearInterval(ctrldh);
             }
         }
@@ -92,22 +93,26 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('user disconnected');
     });
+    socket.on('abort', (msg) => {
+        // checks abort message from ctrlPanel and determines 
+        // which signal to send to ANS
+        console.log('alhhhhhhhh')
+        for (var i = 0; i < msg.length; i++) {
+            port.write(str.charAt(i));
+            console.log('abort initiated: ', msg)
+        }      
+    });
+    socket.on('waterSetpoint', (msg) => {
+        console.log('waterSetpoint: ', msg);
+    });
+    socket.on('dhSetpoint', (dhSetpoint) => {
+        console.log('dhSetpoint: ' + dhSetpoint);
+        dhChange(dhSetpoint);
+    });
     
 });
-io.on('abort', (msg) => {
-    // checks abort message from ctrlPanel and determines 
-    // which signal to send to ANS
-    for (var i = 0; i < str.length; i++) {
-        port.write(str.charAt(i));
-      }      
-});
 
-io.on('waterSetpoint', (msg) => {
-    console.log('waterSetpoint: ', msg);
-});
-io.on('dhSetpoint', (dhSetpoint) => {
-    console.log('dhSetpoint: ' + dhSetpoint);
-});
+
 // every 2 seconds, push data to the ctrlPanel
 setInterval(() => {
     io.emit('level update', pressure); // demo purposes only. not to be used in final version
@@ -123,64 +128,44 @@ http.listen(webPort, (err) => {
     }
 });
 
-// Read data from COM port when available
-port.on('readable', () => {
-    const rPressure = /\d+.\d+ Pa/gm;
-    const rNewCycle = /ANSW/gm;
-    const rWaterLevel = /ANSB\d+/gm;
-    const rDetectorHeight = /ANSC\d+/gm;
+const parser = new Readline()
+port.pipe(parser)
 
+// Read data from COM port when available
+parser.on('data', (data) => {
+    const rPressure = /\d+.\d+ Pa/gm;
+    const rDetectorHeight = /ANSC\d+/gm;
     let m;
-    let nc;
-    let wl;
     let dh;
     let dist; // used for dev only
 
-    let data = port.read().toString('utf8');
-    while ((m = rPressure.exec(data)) !== null) {
-        // This is necessary to avoid infinite loops with zero-width matches
-        if (m.index === rPressure.lastIndex) {
-            rPressure.lastIndex++;
-        }
-        
-        // The result can be accessed through the `m`-variable.
-        m.forEach((match, groupIndex) => {
-            console.log(`Found match, group ${groupIndex}: ${match}`);
-            pressure = match.substring(0, match.length-3);
-        });
-    };
+
 
     // Catch ANSW
-    while ((nc = rNewCycle.exec(data)) !== null) {
-        if (nc.index === rNewCycle.lastIndex) {
-            rNewCycle.lastIndex++;
-        };
+    const rNewCycle = /ANSW/gm;
+    let nctest = data.match(rNewCycle)
 
-        nc.forEach((match, groupIndex) => {
-            console.log('ANSW');
-            io.emit('watchdog', 1);``
-        });
-    };
+    if (nctest != null) {
+        console.log(nctest[0])
+    }
     
     // Catch ANSB
-    while (wl = rWaterLevel.exec(data) !== null) {
-        if (wl.index === rWaterLevel.lastIndex) {
-            rWaterLevel.lastIndex++;
-        };
+    const rWaterLevel = /ANSB\d+/gm;
+    let wltest = data.match(rWaterLevel)
 
-        wl.forEach((match, groupIndex) => {
-            console.log(`Found waterLevel, group ${groupIndex}: ${match}`);
-            waterLevel = match.substring(4, match.length);
-        });        
-    };
+    if (wltest != null) {
+        console.log(wltest[0])
+    }
+
 
     // Catch UT distance. used for dev only
     let pattern = /Distance: \d+/gm
     let myarr =  data.match(pattern)
-    if (myarr[0] != '') {
+    if (myarr != null) {
         distance = myarr[0].substring(10, myarr[0].length);
-        console.log('distance: ' + distance)
+        //console.log('distance: ' + distance)
         testDist = distance
+        io.emit('level update', testDist)
     } else {
 
     }
