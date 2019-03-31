@@ -31,18 +31,15 @@ let testDist = null; // delete when in production
 // FUNCTION DEFINITION
 // (this might need to be put in a different file in a future update)
 
-// function used to adjust the water level height
-let wlSetpoint = sp => {
-    console.log('code goes here');
-    while (sp < testDist) {
-
-    }
-}
-
 // function used to adjust the neutron detector height (low=high, high=low)
 function dhChange (dhSetpoint) {
     
     let direction = null;
+    // checks if dhSetpoint is an integer, then updates gobal variable
+    if (Number.isInteger(dhSetpoint) == false) {
+        dhSetpoint = parseInt(dhSetpoint)
+    }
+    detectorHeightsp = dhSetpoint
 
     // does things to get current state of detector
     if (detectorHeight <= dhSetpoint) {
@@ -64,15 +61,60 @@ function dhChange (dhSetpoint) {
         if (direction == 'down') {
             if (detectorHeight > dhSetpoint) {
                 clearInterval(ctrldh);
+                port.write('A')
+
             }
         } else {
             if (detectorHeight < dhSetpoint) {
                 clearInterval(ctrldh);
+                port.write('A')
             }
         }
-    }, 2000);
+    }, 200);
 }
+// function used to adjust the neutron detector height (low=high, high=low)
+function wlChange (wlSetpoint) {
+    
+    let direction = null;
+    // checks if dhSetpoint is an integer, then updates gobal variable
+    if (Number.isInteger(wlSetpoint) == false) {
+        wlSetpoint = parseInt(wlSetpoint)
+    }
+    waterLevelsp = wlSetpoint
 
+    // does things to get current state of water level
+    if (waterLevel <= wlSetpoint) {
+        port.write('2')
+        port.write('3')
+        direction = 'down';
+    } else {
+        port.write('4')
+        port.write('1')
+        direction = 'up';
+    }
+
+    // starts movement after ANS has time to prepare 
+    // (aka switch motor power connections)
+    setTimeout(() => {
+        port.write('5')
+    }, 250)
+
+    // enters routine to monitor actual v target
+    var ctrlwlh = setInterval(() =>{
+        if (direction == 'down') {
+            if (waterLevel > wlSetpoint) {
+                clearInterval(ctrlwlh);
+                port.write('6')
+
+            }
+        } else {
+            if (waterLevel < wlSetpoint) {
+                clearInterval(ctrlwlh);
+                port.write('6')
+            }
+        }
+    }, 200);
+}
 
 // END FUNCTION DEFINITION
 
@@ -93,18 +135,21 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('user disconnected');
     });
+
     socket.on('abort', (msg) => {
         // checks abort message from ctrlPanel and determines 
         // which signal to send to ANS
-        console.log('alhhhhhhhh')
         for (var i = 0; i < msg.length; i++) {
-            port.write(str.charAt(i));
-            console.log('abort initiated: ', msg)
-        }      
+            port.write(msg.charAt(i));
+        }
+        console.log('#### ANS HALTED ####')
     });
-    socket.on('waterSetpoint', (msg) => {
-        console.log('waterSetpoint: ', msg);
+
+    socket.on('wlsetpoint', (msg) => {
+        console.log('wlsetpoint: ', msg);
+        wlChange(msg)
     });
+
     socket.on('dhSetpoint', (dhSetpoint) => {
         console.log('dhSetpoint: ' + dhSetpoint);
         dhChange(dhSetpoint);
@@ -116,8 +161,10 @@ io.on('connection', (socket) => {
 // every 2 seconds, push data to the ctrlPanel
 setInterval(() => {
     io.emit('level update', pressure); // demo purposes only. not to be used in final version
-    io.emit('detectorHeight', detectorHeight);
-    io.emit('waterLevel', waterLevel);
+    io.emit('dhupdate', detectorHeight);
+    io.emit('dhspupdate', detectorHeightsp);
+    io.emit('wlupdate', waterLevel);
+    io.emit('wlspupdate', waterLevelsp);
 }, 2000);
 
 http.listen(webPort, (err) => {
@@ -134,9 +181,6 @@ port.pipe(parser)
 // Read data from COM port when available
 parser.on('data', (data) => {
     const rPressure = /\d+.\d+ Pa/gm;
-    const rDetectorHeight = /ANSC\d+/gm;
-    let m;
-    let dh;
     let dist; // used for dev only
 
 
@@ -147,6 +191,7 @@ parser.on('data', (data) => {
 
     if (nctest != null) {
         console.log(nctest[0])
+        io.emit('watchdog', true)
     }
     
     // Catch ANSB
@@ -154,20 +199,17 @@ parser.on('data', (data) => {
     let wltest = data.match(rWaterLevel)
 
     if (wltest != null) {
-        console.log(wltest[0])
+        waterLevel = parseInt(wltest[0].substring(4,wltest[0].length))
+        console.log('water level: ', waterLevel)
     }
 
+    // Catch ANSC
+    const rDetectorHeight = /ANSC\d+/gm;
+    let dhtest = data.match(rDetectorHeight)
 
-    // Catch UT distance. used for dev only
-    let pattern = /Distance: \d+/gm
-    let myarr =  data.match(pattern)
-    if (myarr != null) {
-        distance = myarr[0].substring(10, myarr[0].length);
-        //console.log('distance: ' + distance)
-        testDist = distance
-        io.emit('level update', testDist)
-    } else {
-
+    if (dhtest != null) {
+        detectorHeight = parseInt(dhtest[0].substring(4,dhtest[0].length))
+        console.log('detector height: ', detectorHeight)
     }
     
 });

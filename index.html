@@ -59,7 +59,7 @@
                 </div>
 
                 <h2>Status</h2>
-                <span>Connection: Offline  </span><span id="watchdogBlink"></span>
+                <span id="statusText">Connection: Offline  </span><span id="watchdogBlink"></span>
                 <h2>Water Level</h2>
                     <form onsubmit='wlspupdate()'>
                         <div class="form-group">
@@ -115,7 +115,7 @@
             
             setInterval(()=>{
                 if ((new Date).getTime() - watchdog > 150) {
-                    $("#watchdogBlink").css("background-color","red")
+                    $("#watchdogBlink").css("background-color","orange")
                 } else {
                     $("#watchdogBlink").css("background-color","green")
                 }
@@ -135,22 +135,32 @@
                 
             }], chartlayout);
     
-            socket.on('level update', function(msg){
+            socket.on('wlupdate', function(msg){
                 currentWaterLvl.innerHTML = "Water Level: " + msg + " Pa";
                 Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [0]);
             });
 
-            socket.on('sp update', function(msg){
+            socket.on('wlspupdate', function(msg){
                 Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [1]);
             });
-    
+
+            // needs to be reviewed
+            socket.on('dhupdate', function(msg){
+                Plotly.extendTraces('dhchart',{y:[[parseFloat(msg)]]}, [0]);
+            });
+            // needs to be reviewed
+            socket.on('dhspupdate', function(msg){
+                Plotly.extendTraces('dhchart',{y:[[parseFloat(msg)]]}, [1]);
+            });
+
             socket.on('watchdog', (msg) =>{
                 wdtest = (new Date).getTime();
-                if (wdtest - watchdog > 5000) {
-                    console.log('ahhhhhhh')
+                if (wdtest - watchdog > 2000) {
                     socket.emit('abort', 'A6')
                 } else {
                     watchdog = (new Date).getTime();
+                    statusText.innerHTML = statusText.innerHTML.replace('Offline', 'Online')
+
                 }
             });
             // begin jquery stuff
