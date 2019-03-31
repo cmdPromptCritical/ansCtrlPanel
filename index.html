@@ -71,7 +71,7 @@
                             <div id="currentWaterLvl"> Current Water Level:</div>
                         </p>
                     </form>
-                <div id="wlchart"></div>
+                <div id="wlchart" style="width:100%;height:35%;"></div>
             
                 <h2>Detector Height</h2>
                     <form>
@@ -84,7 +84,7 @@
                                     placeholder="Range from 0 to 100">
                         </p>
                     </form>
-                <div id="dhchart"></div>
+                <div id="dhchart" style="width:100%;height:35%;"></div>
             </main>
         </div>
         </div>
@@ -121,7 +121,9 @@
                 }
             }, 150)
     
-            let chartlayout = {
+            let chartlayout = { xaxis:{
+         title: 'Time in s'
+                  }
                 };
             Plotly.plot('wlchart',[{
                 y:[null],
