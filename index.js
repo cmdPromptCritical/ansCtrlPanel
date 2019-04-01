@@ -147,7 +147,11 @@ io.on('connection', (socket) => {
 
     socket.on('wlsetpoint', (msg) => {
         console.log('wlsetpoint: ', msg);
-        wlChange(msg)
+        if (msg == '') {
+
+        } else {
+            wlChange(msg)
+        }
     });
 
     socket.on('dhSetpoint', (dhSetpoint) => {
