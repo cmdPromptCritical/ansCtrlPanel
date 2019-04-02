@@ -8,6 +8,8 @@ body {
     width: 10px;
     border-radius: 50%;
     display: inline-block;
+    margin:0 20px 0 5px;
+
 }
 
 #combox {
@@ -26,4 +28,8 @@ body {
 #detectorHeightSetpoint {
     width: 75%;
     float: left;
+}
+
+#statusText {
+    color: aliceblue;
 }

@@ -9,7 +9,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
-    <script src="public/plotly.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
     <style>
             
@@ -21,6 +21,9 @@
         <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Sigma Labs</a>
         <ul class="navbar-nav px-3">
             <li class="nav-item text-nowrap">
+                    <button class="btn btn-dark" id="taskText">Task: None </button>
+                    <button class="btn btn-dark" id="statusText">Connection: Offline  <span id="watchdogBlink"></span></button>
+
                 <button type="button" class="btn btn-danger" onclick="abort()">ABORT</button>
             </li>
         </ul>
@@ -55,7 +58,9 @@
                         </a>
                     </li>
                     </ul>
-            
+                    <div id="statusbox">
+                    </div>
+
                     </ul>
                 </div>
             </nav>
@@ -70,8 +75,6 @@
                     </div>
                 </div>
 
-                <h2>Status</h2>
-                <span id="statusText">Connection: Offline  </span><span id="watchdogBlink"></span>
                 <h2>Water Level</h2>
                     <form onsubmit='wlspupdate()'>
                         <div class="input-group mb-3">
@@ -83,13 +86,13 @@
                                     id="waterLevelSetpoint" 
                                     placeholder="Range from 3700 to 300">
                             <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button">Send</button>
+                                <button class="btn btn-outline-secondary" type="button" onclick="wlspupdate()">Send</button>
                             </div>
                             <small id="currentWaterLvl" class="form-text text-muted">Current Water Level: null (low=full, high=empty)</small>
-                        </p>
+                        </div>
                     </form>
-                <div id="wlchart" style="width:100%;height:35%;"></div>
-            
+                <div id="wlchart" style="width:100%;"></div>
+
                 <h2>Detector Height</h2>
                     <form onsubmit='dhspupdate()'>
                         <div class="input-group mb-3">
@@ -101,17 +104,21 @@
                                     id="detectorHeightSetpoint" 
                                     placeholder="Range from 3396 to 634">
                             <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button">Send</button>
+                                <button class="btn btn-outline-secondary" type="button" onclick="dhspupdate()">Send</button>
                             </div>
                             <small id="currentDetectorHeight" class="form-text text-muted">Current Detector Height: null (low=fully retracted, high=fully inserted)</small>
-                        </p>
+                        </div>
                     </form>
 
-                <div id="dhchart" style="width:100%;height:35%;"></div>
-                
+                    <div id="dhchart" style="width:100%;"></div>
+
                 <h2 id="comstream">COM Stream</h2>
                 <pre><code><div id="combox"></div></code></pre>
+
             </main>
+            <footer>
+                
+            </footer>
         </div>
         </div>
 
@@ -135,7 +142,8 @@
             }
 
             function dhspupdate() {
-                let dhsetpoint = document.getElementById("detectorHeightSetpoint").value; 
+                let dhsetpoint = document.getElementById("detectorHeightSetpoint").value;
+                console.log('dhsetpoint parsed: ' + dhsetpoint) 
                 socket.emit('dhsetpoint', dhsetpoint)
                 console.log('detectorHeightSetpoint sent')
             }
@@ -155,59 +163,104 @@
             // inits the watchdog timer. If curent time > 5s older than watchdog,
             // send kill sig to ANS.
             let watchdog = (new Date).getTime();
-            let starTime = watchdog;
+            let startTime = watchdog;
 
             dead = 0;
             
-            setInterval(()=>{
+            let watchdogger = setInterval(()=>{
                 let timecompare = (new Date).getTime() - watchdog
                 if (timecompare > 5000) {
                     $("#watchdogBlink").css("background-color","red")
+                    //abort();
+                    clearInterval(watchdogger)
+
                 } else if (timecompare > 150) {
                     $("#watchdogBlink").css("background-color","green")
                 } else {
                     $("#watchdogBlink").css("background-color","orange")
                 }
             }, 150)
-    
-            let chartlayout = { xaxis:{
-                        title: 'Time (s)'
-                    },
-                    yaxis:{
-                        title: 'UT gap (raw data)'
-                    }
-                };
-            
+                
             let dataLine = {
-                x:[null],
+                x:[0],
                 y:[null],
-                type: 'line',
-                name: 'Actual Value'
+                type: 'scatter+line',
+                name: 'Actual Value',
+                xaxis:{
+                    title: 'Time (s)'
+                    },
+                yaxis:{
+                    title: 'UT gap (raw data)'
+                    }
             }
             let setpointLine = {
-                x:[null],
+                x:[0],
                 y:[null],
-                type: 'line',
-                name: 'Setpoint'
+                type: 'scatter+line',
+                name: 'Setpoint',
+                xaxis:{
+                    title: 'Time (s)'
+                    },
+                yaxis:{
+                    title: 'UT gap (raw data)'
+                    }
             }
-            data = [dataLine, setpointLine]
-            Plotly.plot('wlchart', data, chartlayout);
+            
+            let wldata =[{
+                y: [null],
+                mode: 'lines',
+                name: 'Actual'
+                }, {
+                y: [null],
+                mode: 'lines',
+                name: 'Setpoint'
+            }]
+
+            let dhdata = [{
+                y: [null],
+                mode: 'lines',
+                name: 'Actual'
+                }, {
+                y: [null],
+                mode: 'lines',
+                name: 'Setpoint'
+                //marker: {color: 'gray', size:8},
+                //line: {width: 4}
+            }]
+
+            let chartlayout = {
+                yaxis: {
+                    title: 'UT gap (raw data)'
+                },
+                xaxis: {
+                    title: 'Time (seconds/2)'
+                }
+            }
+            
+            let config = { responsive: true }
+
+            Plotly.plot('wlchart', wldata, chartlayout, { responsive: true });
     
-            Plotly.plot('dhchart', data, chartlayout);
+            Plotly.plot('dhchart', dhdata, chartlayout, { responsive: true });
     
             socket.on('wlupdate', function(msg){
+                if (msg == null) msg = 0;
                 currentWaterLvl.innerHTML = "Current Water Level: " + msg + " (low=full, high=empty)";
-                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]], x:[[watchdog-starTime]]}, [0]);
+                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [0]);
             });
 
             socket.on('wlspupdate', function(msg){
-                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]], x:[[watchdog-starTime]]}, [1]);
+                if (msg == null) msg = 0;
+                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [1]);
             });
 
             socket.on('dhupdate', function(msg){
+                if (msg == null) msg = 0;
+                currentDetectorHeight.innerHTML = "Current Detector Height: " + msg + " (low=highest elev, high=lowest elev)";
                 Plotly.extendTraces('dhchart',{y:[[parseFloat(msg)]]}, [0]);
             });
             socket.on('dhspupdate', function(msg){
+                if (msg == null) msg = 0;
                 Plotly.extendTraces('dhchart',{y:[[parseFloat(msg)]]}, [1]);
             });
             socket.on('comstream', (msg) => {
@@ -215,17 +268,8 @@
             })
 
             socket.on('watchdog', (msg) =>{
-                wdtest = (new Date).getTime();
-                if (wdtest - watchdog > 2000) {
-                    socket.emit('abort', 'A6')
-                    statusText.innerHTML = statusText.innerHTML.replace('Online', 'Offline')
-                    $("#watchdogBlink").css("background-color","red")
+                watchdog = (new Date).getTime();
 
-                } else {
-                    watchdog = (new Date).getTime();
-                    statusText.innerHTML = statusText.innerHTML.replace('Offline', 'Online')
-
-                }
             });
             // begin jquery stuff
    

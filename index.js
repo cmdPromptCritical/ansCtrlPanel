@@ -156,9 +156,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('dhSetpoint', (dhSetpoint) => {
-        console.log('dhSetpoint: ' + dhSetpoint);
-        dhChange(dhSetpoint);
+    socket.on('dhsetpoint', (msg) => {
+        console.log('dhsetpoint: ', msg);
+        if (msg == '') {
+
+        } else {
+            dhChange(msg)
+        }
     });
     
 });
@@ -166,7 +170,6 @@ io.on('connection', (socket) => {
 
 // every 2 seconds, push data to the ctrlPanel
 setInterval(() => {
-    io.emit('level update', pressure); // demo purposes only. not to be used in final version
     io.emit('dhupdate', detectorHeight);
     io.emit('dhspupdate', detectorHeightsp);
     io.emit('wlupdate', waterLevel);
