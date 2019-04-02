@@ -9,3 +9,21 @@ body {
     border-radius: 50%;
     display: inline-block;
 }
+
+#combox {
+    overflow: auto;
+    width: 100%;
+    height: 200px;
+    border-width: 1px;
+    border-color: black;
+}
+
+#waterLevelSetpoint {
+    width: 75%;
+    float: left;
+}
+
+#detectorHeightSetpoint {
+    width: 75%;
+    float: left;
+}

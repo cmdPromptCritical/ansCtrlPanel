@@ -37,9 +37,21 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <a class="nav-link" href="#comstream">
                         <span data-feather="layers"></span>
                         COM Stream
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                        <span data-feather="layers"></span>
+                        Calibration
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                        <span data-feather="layers"></span>
+                        Automation
                         </a>
                     </li>
                     </ul>
@@ -62,29 +74,43 @@
                 <span id="statusText">Connection: Offline  </span><span id="watchdogBlink"></span>
                 <h2>Water Level</h2>
                     <form onsubmit='wlspupdate()'>
-                        <div class="form-group">
-                            <label>Water Level Setpoint: </label>
+                        <div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Setpoint:</span>
+                            </div>
                             <input type="text" 
                                     class="form-control"
                                     id="waterLevelSetpoint" 
-                                    placeholder="Range from 0 to 100">
-                            <div id="currentWaterLvl"> Current Water Level:</div>
+                                    placeholder="Range from 3700 to 300">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button">Send</button>
+                            </div>
+                            <small id="currentWaterLvl" class="form-text text-muted">Current Water Level: null (low=full, high=empty)</small>
                         </p>
                     </form>
                 <div id="wlchart" style="width:100%;height:35%;"></div>
             
                 <h2>Detector Height</h2>
-                    <form>
-                        <p>Current detector height: </p>
-                        <div class="form-group">
-                            <label>Detector Height Setpoint: </label>
+                    <form onsubmit='dhspupdate()'>
+                        <div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Setpoint:</span>
+                            </div>
                             <input type="text" 
                                     class="form-control"
                                     id="detectorHeightSetpoint" 
-                                    placeholder="Range from 0 to 100">
+                                    placeholder="Range from 3396 to 634">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button">Send</button>
+                            </div>
+                            <small id="currentDetectorHeight" class="form-text text-muted">Current Detector Height: null (low=fully retracted, high=fully inserted)</small>
                         </p>
                     </form>
+
                 <div id="dhchart" style="width:100%;height:35%;"></div>
+                
+                <h2 id="comstream">COM Stream</h2>
+                <pre><code><div id="combox"></div></code></pre>
             </main>
         </div>
         </div>
@@ -96,7 +122,6 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
     <script>
             var socket = io();
-    
             // defines what to do if abort button is pressed
             function abort() {
                 socket.emit('abort', 'A6')
@@ -108,57 +133,94 @@
                 socket.emit('wlsetpoint', wlsetpoint)
                 console.log('waterLevelSetpoint sent')
             }
+
+            function dhspupdate() {
+                let dhsetpoint = document.getElementById("detectorHeightSetpoint").value; 
+                socket.emit('dhsetpoint', dhsetpoint)
+                console.log('detectorHeightSetpoint sent')
+            }
+
+            function comstream(msg, br) {
+                let div = document.getElementById('combox')
+                let message;
+                if (br === true) {
+                    message = msg + '<br>'
+                }
+                div.innerHTML += message
+                // TODO: trim output to 2k text. div.innerHTML = div.innerHTML.substring(div.innerHTML.indexOf("<br>") + 3)
+                $('#combox').scrollTop($('#combox')[0].scrollHeight);
+
+            }
+
             // inits the watchdog timer. If curent time > 5s older than watchdog,
             // send kill sig to ANS.
-            watchdog = (new Date).getTime();
+            let watchdog = (new Date).getTime();
+            let starTime = watchdog;
+
             dead = 0;
             
             setInterval(()=>{
-                if ((new Date).getTime() - watchdog > 150) {
-                    $("#watchdogBlink").css("background-color","orange")
-                } else {
+                let timecompare = (new Date).getTime() - watchdog
+                if (timecompare > 5000) {
+                    $("#watchdogBlink").css("background-color","red")
+                } else if (timecompare > 150) {
                     $("#watchdogBlink").css("background-color","green")
+                } else {
+                    $("#watchdogBlink").css("background-color","orange")
                 }
             }, 150)
     
             let chartlayout = { xaxis:{
-         title: 'Time in s'
-                  }
+                        title: 'Time (s)'
+                    },
+                    yaxis:{
+                        title: 'UT gap (raw data)'
+                    }
                 };
-            Plotly.plot('wlchart',[{
+            
+            let dataLine = {
+                x:[null],
                 y:[null],
-                type:'line'
-                
-            }], chartlayout);
+                type: 'line',
+                name: 'Actual Value'
+            }
+            let setpointLine = {
+                x:[null],
+                y:[null],
+                type: 'line',
+                name: 'Setpoint'
+            }
+            data = [dataLine, setpointLine]
+            Plotly.plot('wlchart', data, chartlayout);
     
-            Plotly.plot('dhchart',[{
-                y:[null],
-                type:'line'
-                
-            }], chartlayout);
+            Plotly.plot('dhchart', data, chartlayout);
     
             socket.on('wlupdate', function(msg){
-                currentWaterLvl.innerHTML = "Water Level: " + msg + " Pa";
-                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [0]);
+                currentWaterLvl.innerHTML = "Current Water Level: " + msg + " (low=full, high=empty)";
+                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]], x:[[watchdog-starTime]]}, [0]);
             });
 
             socket.on('wlspupdate', function(msg){
-                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]]}, [1]);
+                Plotly.extendTraces('wlchart',{y:[[parseFloat(msg)]], x:[[watchdog-starTime]]}, [1]);
             });
 
-            // needs to be reviewed
             socket.on('dhupdate', function(msg){
                 Plotly.extendTraces('dhchart',{y:[[parseFloat(msg)]]}, [0]);
             });
-            // needs to be reviewed
             socket.on('dhspupdate', function(msg){
                 Plotly.extendTraces('dhchart',{y:[[parseFloat(msg)]]}, [1]);
             });
+            socket.on('comstream', (msg) => {
+                //comstream(msg, true);
+            })
 
             socket.on('watchdog', (msg) =>{
                 wdtest = (new Date).getTime();
                 if (wdtest - watchdog > 2000) {
                     socket.emit('abort', 'A6')
+                    statusText.innerHTML = statusText.innerHTML.replace('Online', 'Offline')
+                    $("#watchdogBlink").css("background-color","red")
+
                 } else {
                     watchdog = (new Date).getTime();
                     statusText.innerHTML = statusText.innerHTML.replace('Offline', 'Online')
@@ -166,19 +228,7 @@
                 }
             });
             // begin jquery stuff
-            $(function () {
-                // initializes socket connection to server
-                $('form').submit(function(e){
-                    e.preventDefault(); // prevents page reloading
-                    socket.emit('waterSetpoint', $('#waterLevelSetpoint').val());
-                    $('#waterLevelSetpoint').val('');
-                    socket.emit('dhSetpoint', $('#detectorHeightSetpoint').val());
-                    $('#detectorHeightSetpoint').val('');
-                    return false;
-                });
-    
-            });
-    
+   
         </script>
   </body>
 </html>

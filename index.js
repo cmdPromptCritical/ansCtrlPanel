@@ -23,8 +23,7 @@ let detectorHeightsp = null;
 let waterLevelsp = null;
 let waterLevel = null;
 let detectorHeight = null;
-let testDist = null; // delete when in production
-
+let ansState = 'normal';
 // END INITIALIZATION
 
 
@@ -53,6 +52,7 @@ function dhChange (dhSetpoint) {
     // starts movement after ANS has time to prepare 
     // (aka switch motor power connections)
     setTimeout(() => {
+        ansState = 'dhChange';
         port.write('9')
     }, 250)
 
@@ -62,12 +62,14 @@ function dhChange (dhSetpoint) {
             if (detectorHeight > dhSetpoint) {
                 clearInterval(ctrldh);
                 port.write('A')
+                ansState = 'normal';
 
             }
         } else {
             if (detectorHeight < dhSetpoint) {
                 clearInterval(ctrldh);
                 port.write('A')
+                ansState = 'normal';
             }
         }
     }, 200);
@@ -169,6 +171,7 @@ setInterval(() => {
     io.emit('dhspupdate', detectorHeightsp);
     io.emit('wlupdate', waterLevel);
     io.emit('wlspupdate', waterLevelsp);
+    io.emit('watchdog', 'ANSW')
 }, 2000);
 
 http.listen(webPort, (err) => {
@@ -187,6 +190,7 @@ parser.on('data', (data) => {
     const rPressure = /\d+.\d+ Pa/gm;
     let dist; // used for dev only
 
+    io.emit('comstream', data)
 
 
     // Catch ANSW
