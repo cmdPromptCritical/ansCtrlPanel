@@ -18,12 +18,17 @@ const port = new SerialPort(arduinoPort, {
     baudRate: baudrate
 })
 
-let pressure = null; // delete when in production
 let detectorHeightsp = null;
 let waterLevelsp = null;
 let waterLevel = null;
 let detectorHeight = null;
 let ansState = 'normal';
+
+// used for storing calibration values
+let wlFull = null;
+let wlEmpty = null;
+let dhTop = null;
+let dhBottom = null;
 // END INITIALIZATION
 
 
@@ -118,6 +123,29 @@ function wlChange (wlSetpoint) {
     }, 200);
 }
 
+function calibrate() {
+    // send detector to top (wait for a bit)
+    setTimeout(() => {
+        dhChange(0)
+        wlChange(0)
+    }, 120000) // testing needed, this may be too short of a time
+
+    // record readings
+    // is this how you run something after setTimeout?
+    wlFull = waterLevel
+    dhTop = detectorHeight
+
+    // send detector to bottom (wait for a bit)
+    setTimeout(() => {
+        dhChange(99999)
+        wlChange(99999)
+    }, 120000) // testing needed, this may be too short of a time
+
+    // record readings
+    wlEmpty = waterLevel
+    dhBottom = detectorHeight
+
+}
 // END FUNCTION DEFINITION
 
 
